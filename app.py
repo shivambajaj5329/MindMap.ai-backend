@@ -70,16 +70,9 @@ def transcribe_audio(file_path):
 
 def analyze_transcript_openai(transcript, context):
     try:
-        # Using OpenAI to analyze the transcript
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f"Summarize the following meeting transcript, provide sentiment analysis, and key insights in string format with keys summary, sentiment, and insights:\n\n{transcript}\nAdditional context: {context} \n dont include the word JSON or string anywhere. property name enclosed in double quotes enclude the output in curly brackets. Insights should be an array of strings of the insights"}
-            ],
-            max_tokens=10000
-        )
-        result = response.choices[0].message['content'].strip()
+
+        prompt = f"Summarize the following meeting transcript, provide sentiment analysis, and key insights in string format with keys summary, sentiment, and insights:\n\n{transcript}\nAdditional context: {context} \n dont include the word JSON or string anywhere. property name enclosed in double quotes enclude the output in curly brackets. Insights should be an array of strings of the insights"
+        result = prompt_openai(prompt=prompt)
         
         # Parse the JSON response
         analysis = json.loads(result)
@@ -91,17 +84,94 @@ def analyze_transcript_openai(transcript, context):
     except Exception as e:
         print(f"Error in analyzing transcript: {e}")
         return "Error: Could not analyze transcript.", {}, []
+    
+
+
+def prompt_gemini(prompt):
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    response = model.generate_content(prompt)
+
+    return response.text
+
+
+def prompt_openai(prompt):
+
+    messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": f"{prompt}"}
+                ]
+    response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages= messages,
+            max_tokens=10000
+            )
+    result = response.choices[0].message['content'].strip()
+    return result
+
+@app.route('/deidentify', methods=['POST'])
+def deidentify():
+    if 'file' not in request.files or 'model' not in request.form:
+        return jsonify({'error': 'No file or model specified'}), 400
+    
+    file = request.files['file']
+    model = request.form['model']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file:
+        if file.filename.endswith('.txt'):
+            text = file.read().decode('utf-8')
+        else:
+            # Placeholder for audio transcription
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            text = transcribe_audio(file_path)
+        
+        deidentified_text = deidentify_text(text, model)
+
+        return jsonify({
+            "deidentifiedText": deidentified_text
+        }), 200
+
+def deidentify_text(text, model):
+    try:
+        prompt = f"""You are a good bot
+        Task: Please anonymize the following clinical note. Task
+        Specific Rules: Replace all the following information with the term "[REDACTED]": Command
+        Redact any strings that might be a name or acronym or initials, patients' names, doctors' names, the names of the M.D. or Dr., NAMERedact any pager names, medical staff names, NAME
+        Redact any strings that might be a location or address, such as "3970 Longview Drive", LOCATION
+        Redact any strings that look like "something years old" or "age 37", AGE
+        Redact any dates and IDs and numbers and record dates, ID-like strings
+        Redact clinic and hospital names, LOCATION
+        Redact professions such as "manager", PROFESSION
+        Redact any contact information: CONTACT
+        \n
+        Following is the text. Please do not remove any information and ensure the data isnt lost:
+
+        \n\n{text}"""
+        if model.lower() == "gemini":
+            resp = prompt_gemini(prompt)
+        elif model.lower() == "openai":
+            resp = prompt_openai(prompt)
+        else:
+            return "Error: Invalid model specified"
+        
+        return resp
+    except Exception as e:
+        print(f"Error in deidentifying text: {e}")
+        return "Error: Could not deidentify text."
 
 def analyze_transcript_gemini(transcript, context):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"Summarize the following meeting transcript, provide sentiment analysis (Positive, Negative, Neutral one of these), and key informative insights:\n\n{transcript}\nAdditional context: {context} \n dont include the word JSON or string anywhere. property name enclosed in double quotes enclude the output in curly brackets. Insights should be an array of strings of the insights. Please make sure insights a list of strings"
-        response = model.generate_content(prompt)
+        response = prompt_gemini(prompt)
 
         # print(response)
         
         # Parse the response assuming it's a structured JSON
-        analysis = json.loads(response.text)
+        analysis = json.loads(response)
         summary = analysis.get("summary", "No summary provided.")
         sentiment = analysis.get("sentiment", {})
         insights = analysis.get("insights", [])
