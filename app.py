@@ -71,7 +71,34 @@ def transcribe_audio(file_path):
 def analyze_transcript_openai(transcript, context):
     try:
 
-        prompt = f"Summarize the following meeting transcript, provide sentiment analysis, and key insights in string format with keys summary, sentiment, and insights:\n\n{transcript}\nAdditional context: {context} \n dont include the word JSON or string anywhere. property name enclosed in double quotes enclude the output in curly brackets. Insights should be an array of strings of the insights"
+        prompt = f"""
+            You are a highly efficient and intelligent bot.
+
+            Task: Summarize the following meeting transcript, provide sentiment analysis, and key insights.
+
+            Requirements:
+            1. **Summary**:
+            - Provide a concise summary of the main points discussed in the meeting.
+
+            2. **Sentiment Analysis**:
+            - Analyze the overall sentiment of the meeting, indicating whether it was positive, negative, or neutral.
+
+            3. **Key Insights**:
+            - Extract and list key insights from the meeting. Insights should be an array of strings, each string representing a distinct insight.
+
+            Formatting Rules:
+            - Do not include the words "JSON" or "string" anywhere in the response.
+            - Enclose property names in double quotes.
+            - Enclose the entire output in curly brackets.
+            - Ensure insights are formatted as an array of strings.
+
+            Context:
+            - Additional context: {context}
+
+            Transcript:
+            - Following is the meeting transcript:
+
+            \n\n{transcript}"""        
         result = prompt_openai(prompt=prompt)
         
         # Parse the JSON response
@@ -137,20 +164,40 @@ def deidentify():
 
 def deidentify_text(text, model):
     try:
-        prompt = f"""You are a good bot
-        Task: Please anonymize the following clinical note. Task
-        Specific Rules: Replace all the following information with the term "[REDACTED]": Command
-        Redact any strings that might be a name or acronym or initials, patients' names, doctors' names, the names of the M.D. or Dr., NAMERedact any pager names, medical staff names, NAME
-        Redact any strings that might be a location or address, such as "3970 Longview Drive", LOCATION
-        Redact any strings that look like "something years old" or "age 37", AGE
-        Redact any dates and IDs and numbers and record dates, ID-like strings
-        Redact clinic and hospital names, LOCATION
-        Redact professions such as "manager", PROFESSION
-        Redact any contact information: CONTACT
-        \n
-        Following is the text. Please do not remove any information and ensure the data isnt lost:
+        prompt = f"""You are a good bot.
 
-        \n\n{text}"""
+Task: Please anonymize the following clinical note.
+
+Task Specific Rules:
+1. **Names**:
+   - Replace any strings that might be a name, acronym, or initials, including patients' names, doctors' names, M.D., Dr., and medical staff names, with "[REDACTED]".
+   - Replace the therapist and client names specifically with 'therapist' and 'client' respectively.
+
+2. **Locations**:
+   - Replace any strings that might be a location or address, such as "3970 Longview Drive", clinic, and hospital names, with "[REDACTED]".
+
+3. **Ages**:
+   - Replace any strings that indicate age, such as "something years old" or "age 37", with "[REDACTED]".
+
+4. **Dates and IDs**:
+   - Replace any dates, IDs, or ID-like strings, and record dates with "[REDACTED]".
+
+5. **Professions**:
+   - Replace any mentions of professions, such as "manager", with "[REDACTED]".
+
+6. **Contact Information**:
+   - Replace any contact information, including phone numbers, email addresses, and other contact details, with "[REDACTED]".
+
+Formatting Rules:
+- Ensure the text has a double newline charecters ("\n\n") after every dialog spoken by either the therapist or the client.
+
+Instructions:
+- Please do not remove any information that is not specified to be redacted.
+- Ensure the integrity of the clinical note is maintained, with only the specified information redacted.
+
+Following is the text. Please ensure all specified information is redacted according to the rules provided:
+
+\n\n{text}"""
         if model.lower() == "gemini":
             resp = prompt_gemini(prompt)
         elif model.lower() == "openai":
@@ -165,7 +212,34 @@ def deidentify_text(text, model):
 
 def analyze_transcript_gemini(transcript, context):
     try:
-        prompt = f"Summarize the following meeting transcript, provide sentiment analysis (Positive, Negative, Neutral one of these), and key informative insights:\n\n{transcript}\nAdditional context: {context} \n dont include the word JSON or string anywhere. property name enclosed in double quotes enclude the output in curly brackets. Insights should be an array of strings of the insights. Please make sure insights a list of strings"
+        prompt = f"""
+            You are a highly efficient and intelligent bot.
+
+            Task: Summarize the following meeting transcript, provide sentiment analysis, and key insights.
+
+            Requirements:
+            1. **Summary**:
+            - Provide a concise summary of the main points discussed in the meeting.
+
+            2. **Sentiment Analysis**:
+            - Analyze the overall sentiment of the meeting, indicating whether it was positive, negative, or neutral.
+
+            3. **Key Insights**:
+            - Extract and list key insights from the meeting. Insights should be an array of strings, each string representing a distinct insight.
+
+            Formatting Rules:
+            - Do not include the words "JSON" or "string" anywhere in the response.
+            - Enclose property names in double quotes.
+            - Enclose the entire output in curly brackets.
+            - Ensure insights are formatted as an array of strings.
+
+            Context:
+            - Additional context: {context}
+
+            Transcript:
+            - Following is the meeting transcript:
+
+            \n\n{transcript}"""
         response = prompt_gemini(prompt)
 
         # print(response)
