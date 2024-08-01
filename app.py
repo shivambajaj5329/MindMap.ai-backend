@@ -48,12 +48,40 @@ def upload():
         else:
             # Placeholder for audio transcription
             transcription = transcribe_audio(file_path)
-        
+
+        prompt = f"""
+            You are a highly efficient and intelligent bot.
+
+            Task: Summarize the following meeting transcript, provide sentiment analysis, and key insights.
+
+            Requirements:
+            1. **summary**:
+            - Provide a concise summary of the main points discussed in the meeting.
+
+            2. **sentiment**:
+            - Analyze the overall sentiment of the meeting, indicating whether it was positive, negative, or neutral.
+
+            3. **insights**:
+            - Extract and list key valuable insights from the meeting. Insights should be an array of strings, each string representing a distinct insight.
+
+            Formatting Rules:
+            - Do not include the words "JSON" or "string" anywhere in the response.
+            - Enclose property names in double quotes.
+            - Enclose the entire output in curly brackets.
+            - Ensure insights are formatted as an array of strings.
+
+            Context:
+            - Additional context: {context}
+
+            Transcript:
+            - Following is the meeting transcript:
+
+            \n\n{transcription}"""        
         # Analyze the transcription using the chosen model
         if model == 'openai':
-            summary, sentiment, insights = analyze_transcript_openai(transcription, context)
+            summary, sentiment, insights = analyze_transcript_openai(prompt)
         elif model == 'gemini':
-            summary, sentiment, insights = analyze_transcript_gemini(transcription, context)
+            summary, sentiment, insights = analyze_transcript_gemini(prompt)
         else:
             return jsonify({'error': 'Invalid model specified'}), 400
 
@@ -68,38 +96,13 @@ def transcribe_audio(file_path):
     # Simulated transcription
     return "Simulated transcription of the audio."
 
-def analyze_transcript_openai(transcript, context):
+def analyze_transcript_openai(prompt):
     try:
 
-        prompt = f"""
-            You are a highly efficient and intelligent bot.
-
-            Task: Summarize the following meeting transcript, provide sentiment analysis, and key insights.
-
-            Requirements:
-            1. **Summary**:
-            - Provide a concise summary of the main points discussed in the meeting.
-
-            2. **Sentiment Analysis**:
-            - Analyze the overall sentiment of the meeting, indicating whether it was positive, negative, or neutral.
-
-            3. **Key Insights**:
-            - Extract and list key insights from the meeting. Insights should be an array of strings, each string representing a distinct insight.
-
-            Formatting Rules:
-            - Do not include the words "JSON" or "string" anywhere in the response.
-            - Enclose property names in double quotes.
-            - Enclose the entire output in curly brackets.
-            - Ensure insights are formatted as an array of strings.
-
-            Context:
-            - Additional context: {context}
-
-            Transcript:
-            - Following is the meeting transcript:
-
-            \n\n{transcript}"""        
+        
         result = prompt_openai(prompt=prompt)
+
+        # print(result)
         
         # Parse the JSON response
         analysis = json.loads(result)
@@ -210,36 +213,8 @@ Following is the text. Please ensure all specified information is redacted accor
         print(f"Error in deidentifying text: {e}")
         return "Error: Could not deidentify text."
 
-def analyze_transcript_gemini(transcript, context):
+def analyze_transcript_gemini(prompt):
     try:
-        prompt = f"""
-            You are a highly efficient and intelligent bot.
-
-            Task: Summarize the following meeting transcript, provide sentiment analysis, and key insights.
-
-            Requirements:
-            1. **Summary**:
-            - Provide a concise summary of the main points discussed in the meeting.
-
-            2. **Sentiment Analysis**:
-            - Analyze the overall sentiment of the meeting, indicating whether it was positive, negative, or neutral.
-
-            3. **Key Insights**:
-            - Extract and list key insights from the meeting. Insights should be an array of strings, each string representing a distinct insight.
-
-            Formatting Rules:
-            - Do not include the words "JSON" or "string" anywhere in the response.
-            - Enclose property names in double quotes.
-            - Enclose the entire output in curly brackets.
-            - Ensure insights are formatted as an array of strings.
-
-            Context:
-            - Additional context: {context}
-
-            Transcript:
-            - Following is the meeting transcript:
-
-            \n\n{transcript}"""
         response = prompt_gemini(prompt)
 
         # print(response)
