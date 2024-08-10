@@ -28,7 +28,7 @@ load_dotenv()
 app = Flask(__name__)
 cors_origins = os.environ.get('CORS_ORIGINS', '').split(',')
 CORS(app, resources={r"/*": {
-    "origins": "http://localhost:3000",
+    "origins": ["http://localhost:3000", "https://mind-map-ai-frontend.vercel.app"],
     "methods": ["GET", "POST", "PUT", "DELETE"],
     "allow_headers": ["Content-Type", "Authorization"]
 }})
