@@ -26,7 +26,12 @@ matplotlib.use('Agg')
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+cors_origins = os.environ.get('CORS_ORIGINS', '').split(',')
+CORS(app, resources={r"/*": {
+    "origins": "http://localhost:3000",
+    "methods": ["GET", "POST", "PUT", "DELETE"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Set OpenAI API key
