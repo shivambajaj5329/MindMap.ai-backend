@@ -19,6 +19,7 @@ from reportlab.lib.units import inch
 import matplotlib
 import logging
 import re
+from reportlab.lib.utils import ImageReader
 matplotlib.use('Agg')
 
 
@@ -349,7 +350,8 @@ Please synthesize this information into a coherent analysis, highlighting the mo
    
     response = prompt_gemini(prompt)
     return response
-def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_graph, gpt_analysis):
+
+def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_graph, gpt_analysis, png_logo_path=None):
     try:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.5*inch, leftMargin=0.5*inch, topMargin=72, bottomMargin=18)
@@ -372,16 +374,19 @@ def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_g
 
         story = []
 
+        # Add the heading and date range
         story.append(Paragraph(f"Therapy Report for {patient_name}", styles['Heading1']))
         story.append(Paragraph(f"Date Range: {start_date} to {end_date}", styles['BodyText']))
         story.append(Spacer(1, 12))
 
+        # Add the sentiment graph
         img = Image(io.BytesIO(base64.b64decode(sentiment_graph)))
         img.drawHeight = 4 * inch
         img.drawWidth = 6 * inch
         story.append(img)
         story.append(Spacer(1, 12))
 
+        # Add the AI-generated analysis
         story.append(Paragraph("AI-Generated Analysis:", styles['Heading2']))
         story.append(Spacer(1, 6))
 
@@ -391,28 +396,24 @@ def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_g
         in_list = False
 
         for line in lines:
-            # Use regex to detect any numbered list item
             number_match = re.match(r'^(\d+)\.\s', line)
             if number_match:
                 if not in_list:
-                    # If we're starting a new list, add any previous list
                     if list_items:
                         story.append(ListFlowable(list_items, bulletType='1'))
                         list_items = []
                 in_list = True
                 number = number_match.group(1)
-                # Remove the number and strip whitespace
                 item_text = line[len(number_match.group(0)):].strip()
                 list_items.append(Paragraph(f"{number}. {item_text}", styles['ListItem']))
-            elif in_list and line.strip():  # Continuation of list item
+            elif in_list and line.strip():
                 list_items[-1] = Paragraph(list_items[-1].text + ' ' + line.strip(), styles['ListItem'])
             else:
-                if in_list:  # End of list
+                if in_list:
                     story.append(ListFlowable(list_items, bulletType='1'))
                     list_items = []
                     in_list = False
                 
-                # Process non-list text
                 if line.startswith('##'):
                     story.append(Paragraph(line.strip('#'), styles['Heading3']))
                 else:
@@ -424,12 +425,12 @@ def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_g
                             story.append(Paragraph(part.strip(), styles['Bold']))
                 story.append(Spacer(1, 3))
 
-        # Add any remaining list items
         if list_items:
             story.append(ListFlowable(list_items, bulletType='1'))
 
         story.append(Spacer(1, 12))
 
+        # Add session summaries
         story.append(Paragraph("Session Summaries:", styles['Heading2']))
         story.append(Spacer(1, 6))
 
@@ -455,13 +456,19 @@ def create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_g
             ]))
             story.append(KeepTogether([table, Spacer(1, 12)]))
 
-        doc.build(story)
+        def add_logo(canvas, doc):
+            if png_logo_path:
+                logo = ImageReader(png_logo_path)
+                canvas.drawImage(logo, doc.width + doc.leftMargin - 50, doc.height + doc.topMargin - 40, width=50, height=50)
+
+        doc.build(story, onFirstPage=add_logo, onLaterPages=add_logo)
         buffer.seek(0)
         return buffer
 
     except Exception as e:
         logging.error(f"Error in PDF generation: {str(e)}")
         return None
+
     
 # Updated generate_report function
 @app.route('/generate-report', methods=['POST'])
@@ -476,7 +483,7 @@ def generate_report():
         sentiment_graph = generate_sentiment_graph(summaries)
         analysis = gpt_analysis(summaries)
         
-        pdf_buffer = create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_graph, analysis)
+        pdf_buffer = create_pdf_report(patient_name, start_date, end_date, summaries, sentiment_graph, analysis,png_logo_path='MMLOGO7.png')
         
         if pdf_buffer is None:
             return jsonify({"error": "Failed to generate PDF"}), 500
